@@ -1,0 +1,30 @@
+# Evitar archivos temporales de Jupyter Notebook
+.ipynb_checkpoints/
+
+# Archivos de configuración de Python
+__pycache__/
+*.py[cod]
+
+# Entornos virtuales
+.env/
+.venv/
+env/
+venv/
+
+# Archivos de configuración personales
+*.env
+*.log
+*.sqlite3
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de VSCode o PyCharm
+.vscode/
+.idea/
+
+# Archivos temporales
+*.swp
+*.bak
+*~
