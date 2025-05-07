@@ -1,14 +1,4 @@
-# %%
-driver_path = "C:\\ambiente_desarrollo\\dev-empresas-negocios-env-web-scraping\\edgedriver_win64\\msedgedriver.exe"
-url_login = "https://avanza.claro.com.co/#/signin"
-usuario = "38501867"
-contrasena = "D4vidp_25*"
-download_dir = "C:\\Users\\AMD_INTCOM\\Downloads"
-final_dir = r"C:\\ambiente_desarrollo\\dev-empresas-negocios-env-web-scraping\\fuentes"
-final_file_name = "Base_Avanza.csv"
 
-# %% [markdown]
-# Importar las librerias necesarias
 
 # %%
 from selenium import webdriver
