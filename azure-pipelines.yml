@@ -1,0 +1,197 @@
+# ====================================================================
+# Pipeline CI/CD para Automatización ETL
+# Hey! Este pipeline ejecuta todos nuestros ETLs :)
+# Por: Johana Perez
+# Última actualización: Junio 2025 
+# ====================================================================
+
+# Configuración de triggers - cuándo se ejecuta el pipeline
+trigger:
+  branches:
+    include:
+    - main      # Para pasar a producción
+    - develop   # Para pruebas
+    - feature/* # Para nuevas funciones
+  paths:
+    include:
+    - '**/*.py'            # Solo archivos Python
+    - 'requirements.txt'    # Y dependencias
+    - 'azure-pipelines.yml'
+    - 'infrastructure/**'
+
+# Las herramientas que necesitamos
+variables:
+  - name: pythonVersion
+    value: '3.10'  # Versión estable que usamos
+  - name: projectRoot
+    value: '$(System.DefaultWorkingDirectory)'
+  
+  # TODO: Actualizar cuando tengamos Azure listo
+  - name: azureServiceConnection
+    value: 'conexion-azure-prod'
+  - name: appServiceName 
+    value: 'etl-automation-app'
+  - name: resourceGroup
+    value: 'rg-etl-prod'
+  
+  # Nuestros secretos (no tocar!)
+  - group: production-secrets
+
+# Usamos Ubuntu porque es más ligero y rápido
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: Prepare
+    steps:
+    # Setup inicial
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(pythonVersion)'
+        addToPath: true
+      displayName: 'Configurando Python'
+
+    # Cache para optimizar tiempo de build
+    - task: Cache@2
+      inputs:
+        key: 'python | "$(Agent.OS)" | requirements.txt'
+        restoreKeys: |
+          python | "$(Agent.OS)"
+        path: $(Pipeline.Workspace)/.pip
+      displayName: 'Cache de paquetes'
+
+    # Instalamos todo lo necesario
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pylint pytest pytest-cov bandit safety  # Herramientas de testing
+      displayName: 'Instalando dependencias'
+
+    - script: |
+        safety check
+      displayName: 'Check dependencies for security vulnerabilities'
+      continueOnError: true
+
+    - script: |
+        pylint $(find . -name "*.py")
+      displayName: 'Run linting'
+      continueOnError: true
+
+    - script: |
+        bandit -r .
+      displayName: 'Security scan'
+      continueOnError: true
+
+    - script: |
+        pytest --cov=. --cov-report=xml
+      displayName: 'Run tests'
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+      displayName: 'Publish code coverage'
+
+  - job: TestETLScripts
+    displayName: 'Test ETL Scripts'
+    dependsOn: Prepare 
+    steps:
+    # Setup inicial
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(pythonVersion)'
+        addToPath: true
+
+    - script: |
+        $scripts = @(
+          # Scripts base - estos van primero siempre
+          "cargue_datos_crudos_base_canceladas\cargue_datos_crudos_canceladas.py",
+          "cargue_datos_crudos_base_canceladas_999\cargue_datos_crudos_canceladas_999.py",
+          
+          # Scripts de digitación (dependen de los base)
+          "cargue_datos_crudos_base_digitadas\cargue_datos_crudos_digitadas.py",
+          "cargue_datos_crudos_base_digitadas_up\cargue_datos_crudos_digitadas_up.py",
+
+          # ... resto de módulos en orden de dependencia ...
+          
+          # Estos van al final porque usan datos de los anteriores
+          "cargue_datos_crudos_legalizadas\cargue_datos_crudos_legalizadas.py",
+          "cargue_datos_crudos_causales\fuentes_crudas_causales.py"
+        )
+
+        # Loop principal de ejecución
+        Write-Host " Iniciando validación de scripts..."
+        
+        foreach ($script in $scripts) {
+          Write-Host " Ejecutando: $script"
+          try {
+            python $script
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host " Listo!"
+            } else {
+              Write-Host " Error (código: $LASTEXITCODE)"
+              exit 1
+            }
+          } catch {
+            Write-Host " Falló: $_" 
+            exit 1
+          }
+        }
+      displayName: 'Validate ETL Scripts'
+      workingDirectory: '$(Build.SourcesDirectory)'
+      failOnStderr: true
+
+- stage: DevDeploy
+  displayName: 'Deploy to Development'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  variables:
+    - group: dev-secrets
+  jobs:
+  - deployment: DeployDev
+    environment: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: templates/deploy-steps.yml
+            parameters:
+              environment: 'development'
+
+- stage: ProdDeploy
+  displayName: 'Deploy to Production'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+    - group: prod-secrets
+  jobs:
+  - deployment: DeployProd
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: templates/deploy-steps.yml
+            parameters:
+              environment: 'production'
+
+- stage: PostDeploy
+  displayName: 'Post Deployment Tasks'
+  dependsOn: 
+  - DevDeploy
+  - ProdDeploy
+  condition: succeeded()
+  jobs:
+  - job: Monitoring
+    steps:
+    - script: |
+        echo "Configurando monitoreo y alertas..."
+      displayName: 'Setup monitoring'
+
+  - job: Documentation
+    steps:
+    - script: |
+        echo "Generando documentación..."
+      displayName: 'Generate documentation'
+
