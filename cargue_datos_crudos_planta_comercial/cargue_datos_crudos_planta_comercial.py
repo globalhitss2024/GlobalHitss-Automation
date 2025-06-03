@@ -835,6 +835,8 @@ def preparacionCargueTablaGerente(df_planta_comercial, origen):
 
             # Cargar nuevos gerente en la base de datos
             if not df_gerente_nuevos.empty:
+                df_gerente_nuevos.drop_duplicates(subset=['identificacion'], inplace=True)
+                df_gerente_nuevos.reset_index(drop=True, inplace=True)
                 df_gerente_nuevos['id_gerente'] = df_gerente_nuevos.apply(lambda row: generate_uuid().upper(), axis=1)
                 df_gerente_nuevos['id_tipo_documento'] = 3
                 df_gerente_nuevos['fecha_creacion'] = pd.Timestamp.now()
