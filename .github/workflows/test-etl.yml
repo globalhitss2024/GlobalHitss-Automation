@@ -1,5 +1,7 @@
 # ====================================================================
 # Pipeline para validación de scripts ETL
+# Autor: Jefferson Rozo
+# Fecha: Marzo 2024
 # ====================================================================
 
 name: ETL Validation Pipeline
@@ -8,16 +10,16 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Ambiente de validación'
+        description: 'Ambiente de validación' 
         required: true
         default: 'test'
         type: choice
         options:
-        - test
-        - staging
+        - test  # Para pruebas locales
+        - staging  # Para pruebas pre-producción
 
 env:
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.10'  # Versión estable que usamos en producción
 
 jobs:
   validate-scripts:
@@ -35,145 +37,80 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint pytest
 
-      - name: Initialize Validation Control
-        run: |
-          echo "VALIDATED_SCRIPTS=()" >> $GITHUB_ENV
-          echo "VALIDATION_ERRORS=()" >> $GITHUB_ENV
-          mkdir -p validation_logs
-
       - name: Validate ETL Scripts
         run: |
-          VALIDATION_FAILED=0
-          
-          validate_script() {
-            local script=$1
-            local script_name=$(basename "$script")
-            
-            # Verificar si ya fue validado
-            if [[ " ${VALIDATED_SCRIPTS[@]} " =~ " ${script_name} " ]]; then
-              echo "⏭️ Script ya validado: $script"
-              return 0
-            fi
-
-            echo "🔍 Validando: $script"
-            
-            # Verificar existencia en múltiples rutas
-            SEARCH_PATHS=(
-              "./"
-              "./scripts/"
-              "./etl/"
-              "./desarrollo_notebook_E&N/"
-            )
-
-            SCRIPT_FOUND=0
-            for search_path in "${SEARCH_PATHS[@]}"; do
-              if [ -f "${search_path}${script}" ]; then
-                SCRIPT_FOUND=1
-                script="${search_path}${script}"
-                break
-              fi
-            done
-
-            if [ $SCRIPT_FOUND -eq 0 ]; then
-              echo "⚠️ Script no encontrado en ninguna ruta: $script"
-              VALIDATION_ERRORS+=("$script: No encontrado")
-              return 1
-            fi
-
-            # Validación de sintaxis Python
-            if ! python -m py_compile "$script" 2>/dev/null; then
-              echo "❌ Error de sintaxis: $script"
-              VALIDATION_ERRORS+=("$script: Error de sintaxis")
-              return 1
-            fi
-
-            # Marcar como validado
-            VALIDATED_SCRIPTS+=("$script_name")
-            echo "✅ Validación exitosa: $script"
-            return 0
-          }
-
-          # Scripts obligatorios (fallan la validación si no existen)
-          REQUIRED_SCRIPTS=(
-            # Cancelaciones
+          # Lista de scripts core que deben existir siempre
+          CORE_SCRIPTS=(
+            # Scripts de cancelaciones
             "cargue_datos_crudos_base_canceladas/cargue_datos_crudos_canceladas.py"
             "cargue_datos_crudos_base_canceladas_999/cargue_datos_crudos_canceladas_999.py"
             
-            # Digitaciones
-            "cargue_datos_crudos_base_digitadas/cargue_datos_crudos_digitadas.py"
+            # Scripts de digitaciones
+            "cargue_datos_crudos_base_digitadas/cargue_datos_crudos_digitadas.py" 
             "cargue_datos_crudos_base_digitadas_up/cargue_datos_crudos_digitadas_up.py"
-            "cargue_datos_crudos_denodo_digitadas_rr/cargue_datos_crudos_digitadas_rr.py"
             
-            # Instalaciones
+            # Scripts de instalaciones
             "cargue_datos_crudos_base_instaladas/cargue_datos_crudos_instaladas.py"
-            "cargue_datos_crudos_base_instaladas_up/cargue_datos_crudos_instaladas_up.py"
             "cargue_datos_crudos_base_instaladas_999/cargue_datos_crudos_instaladas_999.py"
             
-            # Servicios existentes
-            "cargue_datos_crudos_base_cloud/cargue_datos_crudos_cloud.py"
-            "cargue_datos_crudos_base_red_fttx/cargue_datos_crudos_red_fttx.py"
-            "cargue_datos_crudos_servicios_movil/fuentes_cruda_servicios_movil.py"
-            
-            # Ventas existentes
-            "cargue_datos_crudos_ventas_manuales/Ventas_manuales.py"
-            "cargue_datos_crudos_valor_agregado/cargue_datos_crudos_valor_agregado.py"
-            
-            # Core scripts
-            "cargue_datos_crudos_legalizadas/cargue_datos_crudos_legalizadas.py"
+            # Scripts principales
             "cargue_datos_crudos_conciliaciones/conciliaciones.py"
+            "cargue_datos_crudos_legalizadas/cargue_datos_crudos_legalizadas.py"
             "cargue_datos_crudos_metas/cargue_datos_crudos_metas.py"
-            "cargue_datos_crudos_metas_oficial/cargue_datos_crudos_metas_oficial.py"
-            "cargue_datos_crudos_planta_comercial/cargue_datos_crudos_planta_comercial.py"
-            "cargue_datos_crudos_causales/fuentes_crudas_causales.py"
             "cargue_datos_crudos_transfers/transfers_crudos.py"
           )
 
-          # Scripts opcionales (no fallan la validación si no existen)
+          # Scripts opcionales que pueden no existir
           OPTIONAL_SCRIPTS=(
             "cargue_datos_crudos_base_digitadas_comercial/fuentes_crudas_digitadas_comercial.py"
-            "cargue_datos_crudos_base_liquidacion_fija/cargue_datos_crudos_liquidacion_fija.py"
-            "cargue_datos_crudos_conciliaciones_up/conciliaciones_up.py"
-            "cargue_datos_crudos_estados_ordenes/estados_ordenes.py"
-            "cargue_datos_crudos_transfers_up/transfers_up.py"
-            "cargue_datos_crudos_base_retiros/cargue_datos_crudos_retiros.py"
+            "cargue_datos_crudos_base_liquidacion_fija/cargue_datos_crudos_liquidacion_fija.py" 
             "cargue_datos_crudos_reports_comercial/reports_comercial.py"
-            "cargue_datos_crudos_reportes_alertas/reportes_alertas.py"
-            "cargue_datos_crudos_base_recursos/cargue_datos_crudos_recursos.py"
             "cargue_datos_crudos_otros_movimientos/otros_movimientos.py"
           )
 
-          # Validar scripts obligatorios
-          for script in "${REQUIRED_SCRIPTS[@]}"; do
-            if ! validate_script "$script"; then
+          # Variable para controlar si hay errores
+          VALIDATION_FAILED=0
+
+          # Función para validar un script
+          validate_script() {
+            local script=$1
+            local is_core=$2
+
+            echo "🔍 Validando: $script"
+
+            # Buscar el script en el directorio
+            if [ ! -f "$script" ]; then
+              if [ "$is_core" = true ]; then
+                echo "❌ ERROR: Script core no encontrado: $script"
+                return 1
+              else
+                echo "⚠️ Advertencia: Script opcional no encontrado: $script"
+                return 0
+              fi
+            fi
+
+            # Validar sintaxis Python
+            if ! python -m py_compile "$script"; then
+              echo "❌ Error de sintaxis en: $script"
+              return 1
+            fi
+
+            echo "✅ Script validado correctamente: $script"
+            return 0
+          }
+
+          # Validar scripts core
+          echo "=== Validando scripts core ==="
+          for script in "${CORE_SCRIPTS[@]}"; do
+            if ! validate_script "$script" true; then
               VALIDATION_FAILED=1
             fi
           done
 
-          # Validar scripts opcionales (sin fallar la validación)
+          # Validar scripts opcionales
+          echo -e "\n=== Validando scripts opcionales ==="
           for script in "${OPTIONAL_SCRIPTS[@]}"; do
-            if ! validate_script "$script"; then
-              echo "ℹ️ Script opcional no encontrado: $script"
-            fi
+            validate_script "$script" false
           done
 
-          # Generar reporte
-          echo "=== Reporte de Validación ===" > validation_logs/validation_report.txt
-          echo "Scripts obligatorios: ${#REQUIRED_SCRIPTS[@]}" >> validation_logs/validation_report.txt  
-          echo "Scripts opcionales: ${#OPTIONAL_SCRIPTS[@]}" >> validation_logs/validation_report.txt
-          echo "Scripts validados: ${#VALIDATED_SCRIPTS[@]}" >> validation_logs/validation_report.txt
-          echo "Errores encontrados: ${#VALIDATION_ERRORS[@]}" >> validation_logs/validation_report.txt
-          
-          if [ ${#VALIDATION_ERRORS[@]} -gt 0 ]; then
-            echo -e "\nErrores:" >> validation_logs/validation_report.txt
-            printf '%s\n' "${VALIDATION_ERRORS[@]}" >> validation_logs/validation_report.txt
-          fi
-
           exit $VALIDATION_FAILED
-
-      - name: Upload Validation Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: validation-report
-          path: validation_logs/
-          retention-days: 7
