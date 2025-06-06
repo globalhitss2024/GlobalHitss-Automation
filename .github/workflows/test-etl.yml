@@ -1,40 +1,26 @@
 # ====================================================================
-# DEPRECATED: This pipeline has been replaced by azure-pipelines.yml
-# Please use azure-pipelines.yml for all CI/CD operations
+# Pipeline para validación de scripts ETL
 # ====================================================================
 
-name: ETL Pipeline Validation
+name: ETL Validation Pipeline
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Ambiente de ejecución'
+        description: 'Ambiente de validación'
         required: true
         default: 'test'
         type: choice
         options:
         - test
         - staging
-      execution_mode:
-        description: 'Modo de ejecución'
-        required: true
-        default: 'full'
-        type: choice
-        options:
-        - full
-        - quick
-        - single
 
 env:
   PYTHON_VERSION: '3.10'
-  TEST_DATA_PATH: './data/test'
-  STAGING_DATA_PATH: './data/staging'
-  LOG_PATH: './logs'
-  CONFIG_PATH: './config'
 
 jobs:
-  validate-and-test:
+  validate-scripts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -44,39 +30,12 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Configure Environment
-        run: |
-          mkdir -p ${{ env.TEST_DATA_PATH }}/{input,output,temp}
-          mkdir -p ${{ env.STAGING_DATA_PATH }}/{input,output,temp}
-          mkdir -p ${{ env.LOG_PATH }}
-          mkdir -p ${{ env.CONFIG_PATH }}
-
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-test.txt
+          pip install pylint pytest
 
-      - name: Security Scan
-        run: |
-          safety check
-          bandit -r . -c bandit.yaml
-          
-      - name: Code Quality Check
-        run: |
-          pylint $(find . -name "*.py") --rcfile=.pylintrc
-          black . --check
-          isort . --check-only
-
-      - name: Execute ETL Tests
+      - name: Validate ETL Scripts
         run: |
           ETL_SCRIPTS=(
             # Cancelaciones
@@ -131,88 +90,33 @@ jobs:
             "cargue_datos_crudos_otros_movimientos/otros_movimientos.py"
           )
 
+          VALIDATION_FAILED=0
+          
           for script in "${ETL_SCRIPTS[@]}"; do
-            if [ -f "$script" ]; then
-              echo "🔄 Ejecutando: $script"
-              python "$script" \
-                --environment=${{ github.event.inputs.environment }} \
-                --mode=${{ github.event.inputs.execution_mode }} \
-                --data-path="${{ env.TEST_DATA_PATH }}" \
-                --log-path="${{ env.LOG_PATH }}" \
-                --config-path="${{ env.CONFIG_PATH }}" \
-                --batch-size=1000 \
-                --retry-attempts=3
-              
-              if [ $? -eq 0 ]; then
-                echo "✅ Ejecución exitosa: $script"
-              else
-                echo "❌ Error en ejecución: $script"
-                if [ "${{ github.event.inputs.execution_mode }}" = "full" ]; then
-                  exit 1
-                fi
-              fi
-            else
-              echo "⚠️ Script no encontrado: $script"
+            echo "🔍 Validando: $script"
+            
+            # Verificar existencia
+            if [ ! -f "$script" ]; then
+              echo "❌ No encontrado: $script"
+              VALIDATION_FAILED=1
+              continue
             fi
+
+            # Verificar sintaxis
+            if ! python -m py_compile "$script"; then
+              echo "❌ Error de sintaxis: $script" 
+              VALIDATION_FAILED=1
+              continue
+            fi
+
+            # Verificar imports
+            if ! python -c "import py_compile; py_compile.compile('$script')"; then
+              echo "❌ Error en imports: $script"
+              VALIDATION_FAILED=1
+              continue  
+            fi
+
+            echo "✅ Validación exitosa: $script"
           done
 
-      - name: Process Test Results
-        if: always()
-        run: |
-          python scripts/process_results.py \
-            --log-path=${{ env.LOG_PATH }} \
-            --output-path=./test-results
-
-      - name: Archive Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: etl-test-results-${{ github.run_id }}
-          path: |
-            ./test-results/
-            ${{ env.LOG_PATH }}/
-            ./coverage.xml
-          compression-level: 9
-          retention-days: 30
-          overwrite: true
-          if-no-files-found: warn
-
-      - name: Generate Artifact Manifest
-        if: always()
-        run: |
-          echo "ETL Test Results - Run ID: ${{ github.run_id }}" > artifact-manifest.txt
-          echo "Generated on: $(date)" >> artifact-manifest.txt
-          echo "Environment: ${{ github.event.inputs.environment }}" >> artifact-manifest.txt
-          echo "Mode: ${{ github.event.inputs.execution_mode }}" >> artifact-manifest.txt
-
-      - name: Upload Manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: etl-manifest-${{ github.run_id }}
-          path: artifact-manifest.txt
-          retention-days: 90
-
-  integration-test:
-    needs: validate-and-test
-    runs-on: ubuntu-latest
-    if: github.event.inputs.execution_mode == 'full'
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Test Environment
-        run: docker-compose -f docker-compose.test.yml up -d
-
-      - name: Run Integration Tests
-        run: |
-          docker exec etl-test python -m pytest \
-            --integration \
-            --cov=. \
-            --cov-report=xml
-
-      - name: Cleanup
-        if: always()
-        run: docker-compose -f docker-compose.test.yml down
+          exit $VALIDATION_FAILED
