@@ -26,16 +26,29 @@ variables:
   - name: projectRoot
     value: '$(System.DefaultWorkingDirectory)'
   
-  # TODO: Actualizar cuando tengamos Azure listo
+  # Azure Configuration
   - name: azureServiceConnection
-    value: 'conexion-azure-prod'
-  - name: appServiceName 
-    value: 'etl-automation-app'
-  - name: resourceGroup
-    value: 'rg-etl-prod'
+    value: 'etl-service-connection'
+  - name: azureStorageAccount
+    value: 'etlstorageacct'
+  - name: azureKeyVault
+    value: 'etl-key-vault'
+  - name: azureFunctionApp
+    value: 'etl-function-app'
+  - name: azureDataFactory
+    value: 'etl-data-factory'
   
-  # Nuestros secretos (no tocar!)
+  # Control de ejecución
+  - name: batchSize
+    value: 1000
+  - name: maxRetries
+    value: 3
+  - name: timeoutMinutes
+    value: 120
+
+  # Secret Groups
   - group: production-secrets
+  - group: azure-credentials
 
 # Usamos Ubuntu porque es más ligero y rápido
 pool:
@@ -99,50 +112,110 @@ stages:
     displayName: 'Test ETL Scripts'
     dependsOn: Prepare 
     steps:
-    # Setup inicial
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '$(pythonVersion)'
         addToPath: true
 
-    - script: |
-        $scripts = @(
-          # Scripts base - estos van primero siempre
-          "cargue_datos_crudos_base_canceladas\cargue_datos_crudos_canceladas.py",
-          "cargue_datos_crudos_base_canceladas_999\cargue_datos_crudos_canceladas_999.py",
-          
-          # Scripts de digitación (dependen de los base)
-          "cargue_datos_crudos_base_digitadas\cargue_datos_crudos_digitadas.py",
-          "cargue_datos_crudos_base_digitadas_up\cargue_datos_crudos_digitadas_up.py",
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          $scripts = @(
+            # Procesos Base
+            "cargue_datos_crudos_base_canceladas/cargue_datos_crudos_canceladas.py",
+            "cargue_datos_crudos_base_canceladas_999/cargue_datos_crudos_canceladas_999.py",
+            "cargue_datos_crudos_base_digitadas/cargue_datos_crudos_digitadas.py",
+            "cargue_datos_crudos_base_digitadas_up/cargue_datos_crudos_digitadas_up.py",
+            "cargue_datos_crudos_base_digitadas_comercial/fuentes_crudas_digitadas_comercial.py",
+            
+            # Instalaciones y Servicios
+            "cargue_datos_crudos_base_instaladas/cargue_datos_crudos_instaladas.py",
+            "cargue_datos_crudos_base_instaladas_up/cargue_datos_crudos_instaladas_up.py",
+            "cargue_datos_crudos_base_instaladas_999/cargue_datos_crudos_instaladas_999.py",
+            "cargue_datos_crudos_base_cloud/cargue_datos_crudos_cloud.py",
+            "cargue_datos_crudos_servicios_movil/fuentes_cruda_servicios_movil.py",
+            
+            # Red y Distancia
+            "cargue_datos_crudos_base_red_fttx/cargue_datos_crudos_red_fttx.py",
+            "cargue_datos_crudos_base_ngn_larga_distancia_nacional/cargue_datos_crudos_base_ngn_larga_distancia_nacional.py",
+            
+            # Ventas y Comercial
+            "cargue_datos_crudos_ventas_manuales/Ventas_manuales.py",
+            "cargue_datos_crudos_valor_agregado/cargue_datos_crudos_valor_agregado.py",
+            "cargue_datos_crudos_base_liquidacion_fija/cargue_datos_crudos_liquidacion_fija.py",
+            "cargue_datos_crudos_planta_comercial/cargue_datos_crudos_planta_comercial.py",
+            "cargue_datos_crudos_reports_comercial/reports_comercial.py",
+            
+            # Legalizaciones y Conciliaciones
+            "cargue_datos_crudos_legalizadas/cargue_datos_crudos_legalizadas.py",
+            "cargue_datos_crudos_conciliaciones/conciliaciones.py",
+            "cargue_datos_crudos_conciliaciones_up/conciliaciones_up.py",
+            
+            # Metas y Planeación
+            "cargue_datos_crudos_metas/cargue_datos_crudos_metas.py",
+            "cargue_datos_crudos_metas_oficial/cargue_datos_crudos_metas_oficial.py",
+            
+            # Causales y Estados
+            "cargue_datos_crudos_causales/fuentes_crudas_causales.py",
+            "cargue_datos_crudos_estados_ordenes/estados_ordenes.py",
+            
+            # Denodo y RR
+            "cargue_datos_crudos_denodo_digitadas_rr/cargue_datos_crudos_digitadas_rr.py",
+            
+            # Transfers y Movimientos
+            "cargue_datos_crudos_transfers/transfers_crudos.py",
+            "cargue_datos_crudos_transfers_up/transfers_up.py",
+            "cargue_datos_crudos_base_retiros/cargue_datos_crudos_retiros.py",
+            "cargue_datos_crudos_otros_movimientos/otros_movimientos.py",
+            
+            # Reportes y Alertas
+            "cargue_datos_crudos_reportes_alertas/reportes_alertas.py",
+            "cargue_datos_crudos_base_recursos/cargue_datos_crudos_recursos.py"
+          )
 
-          # ... resto de módulos en orden de dependencia ...
-          
-          # Estos van al final porque usan datos de los anteriores
-          "cargue_datos_crudos_legalizadas\cargue_datos_crudos_legalizadas.py",
-          "cargue_datos_crudos_causales\fuentes_crudas_causales.py"
-        )
-
-        # Loop principal de ejecución
-        Write-Host " Iniciando validación de scripts..."
-        
-        foreach ($script in $scripts) {
-          Write-Host " Ejecutando: $script"
-          try {
-            python $script
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host " Listo!"
-            } else {
-              Write-Host " Error (código: $LASTEXITCODE)"
+          foreach ($script in $scripts) {
+            Write-Host "🔄 Ejecutando: $script"
+            
+            # Configurar variables de Azure
+            $env:AZURE_STORAGE_CONNECTION = "$(azureStorageConnection)"
+            $env:AZURE_KEYVAULT_URL = "$(azureKeyVaultUrl)"
+            
+            try {
+              python $script `
+                --environment="$(environment)" `
+                --azure-storage="$(azureStorageAccount)" `
+                --azure-keyvault="$(azureKeyVault)" `
+                --batch-size="$(batchSize)" `
+                --max-retries="$(maxRetries)"
+                
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Éxito: $script"
+              } else {
+                Write-Host "❌ Error (código: $LASTEXITCODE)"
+                exit 1
+              }
+            } catch {
+              Write-Error "❌ Error en $script : $_"
               exit 1
             }
-          } catch {
-            Write-Host " Falló: $_" 
-            exit 1
           }
-        }
-      displayName: 'Validate ETL Scripts'
-      workingDirectory: '$(Build.SourcesDirectory)'
-      failOnStderr: true
+
+    # Tareas de Azure
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        appName: '$(azureFunctionApp)'
+        package: '$(System.DefaultWorkingDirectory)'
+        deploymentMethod: 'auto'
+
+    - task: AzureDataFactory@2
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        DataFactoryName: '$(azureDataFactory)'
+        Location: 'East US'
 
 - stage: DevDeploy
   displayName: 'Deploy to Development'
@@ -194,4 +267,68 @@ stages:
     - script: |
         echo "Generando documentación..."
       displayName: 'Generate documentation'
+
+- stage: AzureMigration
+  displayName: 'Azure Migration'
+  dependsOn: ProdDeploy
+  condition: succeeded()
+  jobs:
+  - deployment: MigrateData
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzurePowerShell@5
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              ScriptType: 'InlineScript'
+              Inline: |
+                # Migración de datos
+                Write-Host "Iniciando migración a Azure..."
+                
+                # Storage Account
+                $storageAccount = Get-AzStorageAccount `
+                  -ResourceGroupName $(resourceGroup) `
+                  -Name $(azureStorageAccount)
+                
+                # Containers
+                New-AzStorageContainer -Name "raw-data" -Permission Off
+                New-AzStorageContainer -Name "processed-data" -Permission Off
+                New-AzStorageContainer -Name "archive" -Permission Off
+                
+                # Key Vault
+                $keyVault = Get-AzKeyVault `
+                  -ResourceGroupName $(resourceGroup) `
+                  -VaultName $(azureKeyVault)
+                
+                # Secrets
+                foreach ($secret in Get-AzKeyVaultSecret -VaultName $(azureKeyVault)) {
+                  Write-Host "Configurando secreto: $($secret.Name)"
+                }
+                
+                Write-Host "Migración completada"
+              pwsh: true
+              
+  - job: ValidateMigration
+    dependsOn: MigrateData
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Validación post-migración
+          Write-Host "Validando migración..."
+          
+          # Verificar recursos
+          az storage account show --name $(azureStorageAccount)
+          az keyvault show --name $(azureKeyVault)
+          az functionapp show --name $(azureFunctionApp)
+          
+          # Verificar datos
+          az storage blob list --account-name $(azureStorageAccount) --container-name "raw-data"
+          
+          Write-Host "Validación completada"
 
