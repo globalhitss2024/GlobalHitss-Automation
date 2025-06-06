@@ -1,8 +1,8 @@
 # ====================================================================
 # Pipeline para validación de scripts ETL
-# Autor: Jefferson Rozo
-# Fecha: Marzo 2024
-# ====================================================================
+# Autor: Johanana Pérez
+# Descripción: Este pipeline valida la existencia y sintaxis de los scripts ETL
+# Fecha: junio 2025============================================================
 
 name: ETL Validation Pipeline
 
@@ -45,19 +45,40 @@ jobs:
             "cargue_datos_crudos_base_canceladas/cargue_datos_crudos_canceladas.py"
             "cargue_datos_crudos_base_canceladas_999/cargue_datos_crudos_canceladas_999.py"
             
-            # Scripts de digitaciones
-            "cargue_datos_crudos_base_digitadas/cargue_datos_crudos_digitadas.py" 
+            # Scripts de digitaciones y relacionados
+            "cargue_datos_crudos_base_digitadas/cargue_datos_crudos_digitadas.py"
             "cargue_datos_crudos_base_digitadas_up/cargue_datos_crudos_digitadas_up.py"
+            "cargue_datos_crudos_denodo_digitadas_rr/cargue_datos_crudos_digitadas_rr.py"
             
-            # Scripts de instalaciones
+            # Scripts de instalaciones y servicios
             "cargue_datos_crudos_base_instaladas/cargue_datos_crudos_instaladas.py"
+            "cargue_datos_crudos_base_instaladas_up/cargue_datos_crudos_instaladas_up.py"
             "cargue_datos_crudos_base_instaladas_999/cargue_datos_crudos_instaladas_999.py"
+            "cargue_datos_crudos_base_cloud/cargue_datos_crudos_cloud.py"
+            "cargue_datos_crudos_base_ngn_larga_distancia_nacional/cargue_datos_crudos_base_ngn_larga_distancia_nacional.py"
+            "cargue_datos_crudos_base_red_fttx/cargue_datos_crudos_red_fttx.py"
+            "cargue_datos_crudos_base_ventas_compras/cargue_datos_crudos_ventas_compra.py"
+            "cargue_datos_crudos_servicios_movil/fuentes_cruda_servicios_movil.py"
             
-            # Scripts principales
+            # Scripts de datos y ventas
+            "cargue_datos_crudos_ventas_cloud/ventas_cloud.py"
+            "cargue_datos_crudos_ventas_manuales/Ventas_manuales.py"
+            "cargue_datos_crudos_web_scraping_avanza/web_scraping_avanza.py"
+            "cargue_datos_crudos_fo/cargue_datos_crudos_fo/cargue_datos_crudos_fo.py"
+            
+            # Scripts de altas y metas
+            "cargue_datos_crudos_altas_segmento_empresas/cargue_datos_crudos_altas_segmento_empresas.py"
+            "cargue_datos_crudos_metas/cargue_datos_crudos_metas.py"
+            "cargue_datos_crudos_metas_oficial/cargue_datos_crudos_metas_oficial.py"
+            "cargue_datos_crudos_metas_empresas/cargue_datos_crudos_metas_empresas.py"
+            
+            # Scripts principales y otros
             "cargue_datos_crudos_conciliaciones/conciliaciones.py"
             "cargue_datos_crudos_legalizadas/cargue_datos_crudos_legalizadas.py"
-            "cargue_datos_crudos_metas/cargue_datos_crudos_metas.py"
             "cargue_datos_crudos_transfers/transfers_crudos.py"
+            "cargue_datos_crudos_valor_agregado/cargue_datos_crudos_valor_agregado.py"
+            "cargue_datos_crudos_valor_agregado/cargue_datos_crudos_valor_agregado_bk.py"
+            "cargue_datos_crudos_causales/fuentes_crudas_causales.py"
           )
 
           # Scripts opcionales que pueden no existir
@@ -68,34 +89,30 @@ jobs:
             "cargue_datos_crudos_otros_movimientos/otros_movimientos.py"
           )
 
-          # Variable para controlar si hay errores
           VALIDATION_FAILED=0
 
-          # Función para validar un script
           validate_script() {
             local script=$1
             local is_core=$2
 
-            echo "🔍 Validando: $script"
+            echo "Validando: $script"
 
-            # Buscar el script en el directorio
             if [ ! -f "$script" ]; then
               if [ "$is_core" = true ]; then
-                echo "❌ ERROR: Script core no encontrado: $script"
+                echo "ERROR: Script core no encontrado: $script"
                 return 1
               else
-                echo "⚠️ Advertencia: Script opcional no encontrado: $script"
+                echo "AVISO: Script opcional no encontrado: $script" 
                 return 0
               fi
             fi
 
-            # Validar sintaxis Python
             if ! python -m py_compile "$script"; then
-              echo "❌ Error de sintaxis en: $script"
+              echo "ERROR: Error de sintaxis en: $script"
               return 1
             fi
 
-            echo "✅ Script validado correctamente: $script"
+            echo "OK: Script validado: $script"
             return 0
           }
 
