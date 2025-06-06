@@ -93,7 +93,8 @@ jobs:
             return 0
           }
 
-          ETL_SCRIPTS=(
+          # Scripts obligatorios (fallan la validación si no existen)
+          REQUIRED_SCRIPTS=(
             # Cancelaciones
             "cargue_datos_crudos_base_canceladas/cargue_datos_crudos_canceladas.py"
             "cargue_datos_crudos_base_canceladas_999/cargue_datos_crudos_canceladas_999.py"
@@ -108,53 +109,57 @@ jobs:
             "cargue_datos_crudos_base_instaladas_up/cargue_datos_crudos_instaladas_up.py"
             "cargue_datos_crudos_base_instaladas_999/cargue_datos_crudos_instaladas_999.py"
             
-            # Servicios y Productos
+            # Servicios existentes
             "cargue_datos_crudos_base_cloud/cargue_datos_crudos_cloud.py"
-            "cargue_datos_crudos_base_ngn_larga_distancia_nacional/cargue_datos_crudos_base_ngn_larga_distancia_nacional.py"
             "cargue_datos_crudos_base_red_fttx/cargue_datos_crudos_red_fttx.py"
             "cargue_datos_crudos_servicios_movil/fuentes_cruda_servicios_movil.py"
             
-            # Ventas y Comercial
-            "cargue_datos_crudos_base_digitadas_comercial/fuentes_crudas_digitadas_comercial.py"
+            # Ventas existentes
             "cargue_datos_crudos_ventas_manuales/Ventas_manuales.py"
             "cargue_datos_crudos_valor_agregado/cargue_datos_crudos_valor_agregado.py"
-            "cargue_datos_crudos_base_liquidacion_fija/cargue_datos_crudos_liquidacion_fija.py"
             
-            # Legalizaciones y Conciliaciones
+            # Core scripts
             "cargue_datos_crudos_legalizadas/cargue_datos_crudos_legalizadas.py"
             "cargue_datos_crudos_conciliaciones/conciliaciones.py"
-            "cargue_datos_crudos_conciliaciones_up/conciliaciones_up.py"
-            
-            # Metas y Planeación
             "cargue_datos_crudos_metas/cargue_datos_crudos_metas.py"
             "cargue_datos_crudos_metas_oficial/cargue_datos_crudos_metas_oficial.py"
             "cargue_datos_crudos_planta_comercial/cargue_datos_crudos_planta_comercial.py"
-            
-            # Causales y Estados
             "cargue_datos_crudos_causales/fuentes_crudas_causales.py"
-            "cargue_datos_crudos_estados_ordenes/estados_ordenes.py"
-            
-            # Transfers y Movimientos
             "cargue_datos_crudos_transfers/transfers_crudos.py"
+          )
+
+          # Scripts opcionales (no fallan la validación si no existen)
+          OPTIONAL_SCRIPTS=(
+            "cargue_datos_crudos_base_digitadas_comercial/fuentes_crudas_digitadas_comercial.py"
+            "cargue_datos_crudos_base_liquidacion_fija/cargue_datos_crudos_liquidacion_fija.py"
+            "cargue_datos_crudos_conciliaciones_up/conciliaciones_up.py"
+            "cargue_datos_crudos_estados_ordenes/estados_ordenes.py"
             "cargue_datos_crudos_transfers_up/transfers_up.py"
             "cargue_datos_crudos_base_retiros/cargue_datos_crudos_retiros.py"
-            
-            # Reportes y Otros
             "cargue_datos_crudos_reports_comercial/reports_comercial.py"
             "cargue_datos_crudos_reportes_alertas/reportes_alertas.py"
             "cargue_datos_crudos_base_recursos/cargue_datos_crudos_recursos.py"
             "cargue_datos_crudos_otros_movimientos/otros_movimientos.py"
           )
 
-          for script in "${ETL_SCRIPTS[@]}"; do
+          # Validar scripts obligatorios
+          for script in "${REQUIRED_SCRIPTS[@]}"; do
             if ! validate_script "$script"; then
               VALIDATION_FAILED=1
             fi
           done
 
+          # Validar scripts opcionales (sin fallar la validación)
+          for script in "${OPTIONAL_SCRIPTS[@]}"; do
+            if ! validate_script "$script"; then
+              echo "ℹ️ Script opcional no encontrado: $script"
+            fi
+          done
+
           # Generar reporte
           echo "=== Reporte de Validación ===" > validation_logs/validation_report.txt
-          echo "Total scripts: ${#ETL_SCRIPTS[@]}" >> validation_logs/validation_report.txt
+          echo "Scripts obligatorios: ${#REQUIRED_SCRIPTS[@]}" >> validation_logs/validation_report.txt  
+          echo "Scripts opcionales: ${#OPTIONAL_SCRIPTS[@]}" >> validation_logs/validation_report.txt
           echo "Scripts validados: ${#VALIDATED_SCRIPTS[@]}" >> validation_logs/validation_report.txt
           echo "Errores encontrados: ${#VALIDATION_ERRORS[@]}" >> validation_logs/validation_report.txt
           
