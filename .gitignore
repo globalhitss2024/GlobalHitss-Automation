@@ -15,6 +15,7 @@ venv/
 *.env
 *.log
 *.sqlite3
+./config/params.json
 
 # Archivos del sistema
 .DS_Store
