@@ -30,7 +30,7 @@ class connections:
         """return connect for postgres"""
         try:
            self.logger.info('Connecting to postgres')
-           return create_engine(f"postgresql+psycopg2://{self.user}:{self.psw}@{self.host}/{self.db}", poolclass=NullPool)
+           return create_engine(f"postgresql://{self.user}:{self.psw}@{self.host}/{self.db}", poolclass=NullPool)    
         except Exception as e:
             print("An error has occurred when you try to connect to postgres: /n",e)
 
@@ -41,7 +41,7 @@ class connections:
         except Exception as e:
             print("An error has occurred when you try to connect to sql server: /n",e)
 
-class connItelienciaComercial(connections):
+class conIntelienciaComercial(connections):
     """
     This class is for create a specific connection to inteligencia comercial database
     """
@@ -58,14 +58,3 @@ class connItelienciaComercial(connections):
             return conn
         except Exception as e:
             self.logger.warning('Error to connect database Inteligencia comercial')
-
-
-"""
-example
-if __name__ == '__main__':
-    IC_connect = connItelienciaComercial().pg_ic_connect()
-    df = pd.read_sql("select * from proc_genericos.tb_aux_importacion_bases",IC_connect)
-    print(df.head(5))
-"""
-
-
