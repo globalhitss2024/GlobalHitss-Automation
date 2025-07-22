@@ -30,3 +30,5 @@ Thumbs.db
 *.swp
 *.bak
 *~
+#archivo de credenciales de conexion
+params.json
