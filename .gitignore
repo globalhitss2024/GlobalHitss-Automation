@@ -16,6 +16,7 @@ venv/
 *.log
 *.sqlite3
 ./config/params.json
+params.json
 
 # Archivos del sistema
 .DS_Store
@@ -29,3 +30,5 @@ Thumbs.db
 *.swp
 *.bak
 *~
+#archivo de credenciales de conexion
+params.json
