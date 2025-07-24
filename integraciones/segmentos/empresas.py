@@ -20,7 +20,7 @@ sys.path.insert(0, project_root)
 
 from config.config import conIntelienciaComercial
 from utils.file_exporter import FileExporter
-from sql.empresas_transversal import get_query
+from sql.segmentos.empresas_transversal import get_query
 
 # --- Clase para la Extracción de Datos ---
 class EmpresasData:
