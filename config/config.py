@@ -58,3 +58,21 @@ class conIntelienciaComercial(connections):
             return conn
         except Exception as e:
             self.logger.warning('Error to connect database Inteligencia comercial')
+
+class conDbInteligenciaComercial(connections):
+    """
+    This class is for create a specific connection to inteligencia comercial database
+    """
+    def __init__(self):
+        logging.basicConfig(format='%(acstime)s : %(levelname)s : %(message)s')
+        self.logger = logging.getLogger()
+        self.pg_param = PARAMS["DBInteligenciaComercial"]
+        super().__init__('database', **self.pg_param[0])
+
+    def pg_ic_connect(self):
+        self.logger.info('Connecting to database...')
+        try:
+            conn = super().get_postgres_connect()
+            return conn
+        except Exception as e:
+            self.logger.warning('Error to connect database Inteligencia comercial')
