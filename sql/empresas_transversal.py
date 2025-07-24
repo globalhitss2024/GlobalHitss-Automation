@@ -1,3 +1,14 @@
+'''
+PROYECTO:		    ANALÍTICA DE EMPRESAS Y NEGOCIOS
+FRENTE DE TRABAJO:	EMPRESAS TRANSVERSAL
+AUTOR:			    HITSS - FERNANDA ZAMBRANO
+OPERACIÓN: 		    REPORTE QUE PERMITE IDENTIFICAR EL SEGMENTO DEL CLIENTE
+VERSIÓN:	        V_1.0
+FECHA:              23/07/2025
+DESCRIPCIÓN:	    SCRIPT QUE PERMITE HACER CRUCE ENTRE LAS TABLAS DE ONIX Y ASIGNACIÓN PARA IDENTIFICAR EL SEGMENTO ACTUALIZADO DEL CLLIENTE.
+'''
+
+#Importación de librerias y módulos requeridos
 import pandas as pd
 import sys
 import os
@@ -19,7 +30,22 @@ class EmpresasData:
         query = """SELECT
                 a."NIT",
                 a."NIT_DV",
-                c."iCompanyId" AS ID_ONIX
+                c."iCompanyId" 		AS "ID_ONIX",
+                a."RAZON_SOCIAL",  
+                c."GRUPO_ECONOMICO" AS "GRUPO_OBJETIVO_ONIX",
+                a."SEGMENTO_ACTUAL" AS "SEGMENTO_ASIGNACION",
+                c."SEGMENTO" 		AS "SEGMENTO_ONIX",
+                a."ESTADO_CLIENTE_FYM",
+                a."CIUDAD",
+                a."DEPARTAMENTO",
+                c."AddressType" 	AS "SEDE",
+                a."DIRECCION",
+                c."Telefono" 		AS "TELEFONO",
+                c."Correo" 			AS "CORREO_ELECTRONICO",
+                LOWER (a."WEB") 	AS "WEB",
+                UPPER (c."SECTOR") 	AS "SIC",
+                c."ACTIVIDAD_ECO" 	AS "ACTIVIDAD_COMERCIAL",
+                a."GO_TO_MARKET"
             FROM
                 bd_production.tb_asignacion a
             LEFT JOIN
@@ -37,7 +63,6 @@ class EmpresasData:
             return None
 
 # Funcion que orquesta el flujo de trabajo completo
-
 def run():
     print("Iniciando proceso de extracción de datos de empresas...")
     
@@ -55,7 +80,7 @@ def run():
         exporter.export_to_excel(
             df=df_empresas,
             filename_prefix="reporte_empresas",
-            path="output"
+            path="C:/Users/46120442/OneDrive - GLOBAL HITSS/Documentos/REPORTES_PRUEBA/"
         )
     else:
         print("No se obtuvieron datos o el DataFrame está vacío. Proceso finalizado.")
