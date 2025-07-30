@@ -160,6 +160,7 @@ try:
         if inspector.has_table("tbl_Company"):
             print("La tabla 'tbl_Company' ya existe. Se procederá a truncarla.")
             connection.execute(text('TRUNCATE TABLE "tbl_Company"'))
+            connection.commit()
         else:
             print("La tabla 'tbl_Company' no existe. Se creará al cargar los datos.")
 
