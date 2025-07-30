@@ -2,10 +2,12 @@ class UgiQueries:
 
     def query_asignacion():
         return """
-        select nit, nit_a,jefe, gerente, ciudad, departamento,recurrente_fo_hfc,razon_social,fecha_asignacion
+        select nit, nit_a,cfm_movil,segmento_actual,jefe, gerente, ciudad, departamento,recurrente_fo_hfc,razon_social,fecha_asignacion
         from(
         select "A.NIT" as nit,
             "A.NIT" as nit_a,
+            "A.CFM_MOVIL" as cfm_movil,
+            "A.SEGMENTO_ACTUAL" as segmento_actual,
             "A.JEFE_ACTUAL_FIJO" as jefe,
             "A.GERENTE_ACTUAL_FIJO" as gerente, 
             "A.CIUDAD" as ciudad, 
