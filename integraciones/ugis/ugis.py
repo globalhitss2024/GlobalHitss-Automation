@@ -45,14 +45,13 @@ class generateUgis:
         except Exception as e:
             print('Error during reading files: \n', e)
 
-    def read_data_bd_asignacion(self):
+    def read_data_db(self, query: str,engine) -> pd.DataFrame:
         try:
-            df_bd_asignacion = pd.read_sql(uq.query_asignacion(),connic().pg_ic_connect())
-            return df_bd_asignacion
+            df_bd_result = pd.read_sql(query,engine)
+            return df_bd_result
         except Exception as e:
             print('An error has occurred when you trying to read bd asignacion: ',e)
 
-    
     def cross_data_files(self, *df: pd.DataFrame) -> pd.DataFrame:
         """
         this method cross the files and return only file the join between to files piramide and unificada
@@ -65,17 +64,17 @@ class generateUgis:
             df_piram_marco['nit'] = df_piram_marco['nit'].astype('string')
             df_join = df_unificada.merge(df_piram_marco, left_on='nit', right_on='nit',how='inner')
             df_join['unificada'] = True
-            df_join['piram_marco'] = True
+            df_join['piramide'] = True
 
             unficado_join = df_unificada.merge(df_piram_marco, left_on='nit', right_on='nit',how='left')
             unficado_join = unficado_join[unficado_join['flag'].isnull()]
             unficado_join['unificada'] = True
-            unficado_join['piram_marco'] = False
+            unficado_join['piramide'] = False
 
             piram_join = df_unificada.merge(df_piram_marco, left_on='nit', right_on='nit',how='right')
             piram_join = piram_join[piram_join['des_tipo_cliente'].isnull()]
             piram_join['unificada'] = False
-            piram_join['piram_marco'] = True
+            piram_join['piramide'] = True
             # united bases
             df_final = pd.concat([df_join,unficado_join,piram_join],axis=0,ignore_index=True)
             return df_final
@@ -85,23 +84,26 @@ class generateUgis:
     def cross_files_bd(self,*df) -> pd.DataFrame:
         try:
             df_cross = df[0].merge(df[1], left_on = 'nit', right_on = 'nit', how = 'left')
-            df_cross['cliente_potencial'] = np.where(df_cross['nit_a'].isnull(), True, False)
-            df_cross.drop(columns=['nit_a'], inplace=True)
+            #df_cross['cliente_potencial'] = np.where(df_cross['nit_a'].isnull(), True, False)
             df_cross['fec_carga'] = formatted_datetime
+            df_cross = df_cross.merge(df[2], left_on = 'segmento_actual', right_on = 'nombre_asignacion', how = 'left')
+            df_cross.drop(columns=['nit_a','nombre_asignacion'], inplace=True)
             return df_cross
         except Exception as e:
             print('An error has occurred when trying to cross data files and bd asignacion: \n',e)
     
     def load_cross_to_db(self,df: pd.DataFrame):
         try:
-            df.to_sql('tbl_base_final_ugis',conndbi().pg_ic_connect(),schema='sch_integracion',if_exists='append',index=False)
+            df.to_sql('tbl_base_final_ugis_old',conndbi().pg_ic_connect(),schema='sch_integracion',if_exists='append',index=False)
         except Exception as e:
             print('An error has ocurred when you trying to load data: ',e)
 
 if __name__ == '__main__':
     cd = generateUgis('C:\\Users\\lopezcrc\\Documents\\EyN\\Fuentes\\entrada')
-    df1,df2 = cd.read_data_files('UNIFICADA JUNIO UMC.csv','BD JUNIO P&M.csv')
-    df_bd_asignacion = cd.read_data_bd_asignacion()
+    df1,df2 = cd.read_data_files('UNIFICADA JULIO UMC.csv','BD JULIO P&M.csv')
+    df_bd_asignacion = cd.read_data_db(uq.query_asignacion(),connic().pg_ic_connect())
+    df_bd_seg_homologo = cd.read_data_db(uq.query_seg_homologo(),conndbi().pg_ic_connect()) 
     df_join_files = cd.cross_data_files(df1,df2)
-    df_final = cd.cross_files_bd(df_join_files,df_bd_asignacion)
+    df_final = cd.cross_files_bd(df_join_files,df_bd_asignacion,df_bd_seg_homologo)
+    print(df_final.columns)
     cd.load_cross_to_db(df_final)

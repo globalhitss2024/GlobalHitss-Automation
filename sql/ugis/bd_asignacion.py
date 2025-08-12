@@ -23,3 +23,10 @@ class UgiQueries:
         where rn = 1
         order by nit desc
         """
+    def query_seg_homologo():
+        return """
+        select nombre_asignacion,
+               segmento_homologado as segmento,
+               direccion_homologada  as direccion
+        from public.tbl_homologo_seg_asignacion
+        """
