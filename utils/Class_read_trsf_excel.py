@@ -5,6 +5,7 @@ OPERACIÓN: 		    MÓDULO CONTINE CLASES PARA PROCESO NEGOCIOS FIJO
 VERSIÓN:            V_1.0
 FECHA:              15/07/2025
 DESCRIPCIÓN:	    CONFIGURACIONES CLASES PARA EXTRACION ARCHIVOS DE EXCEL, CARGAR DATOS Y UPDATE EN TABLAS DE BD.
+ACTUALIZACIÓN:      SE AGREGA raise A load_update_Datos PARA PROCESAMIENTO DE BASE_CLOUD
 '''
 # Importación de módulos personalizados y configuración de rutas
 
@@ -68,6 +69,7 @@ class load_update_Datos:
             # print(f"Cargue exitoso a {schema}.{name}")
         except SQLAlchemyError as e:
             print(f"Error al cargar los datos: {e}")
+            raise
 
     # metodo para acutalizar campos en tabla auxiliar
     def actualiza_tb_aux_imp_ba(self, fecha_modificacion, fecha_hora_actual, id_base, nombre_tabla_aux):
