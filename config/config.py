@@ -70,7 +70,7 @@ class conDbInteligenciaComercial(connections):
         super().__init__('database', **self.pg_param[0])
 
     def pg_ic_connect(self):
-        self.logger.info('Connecting to database...')
+        self.logger.info('Connecting to database...') 
         try:
             conn = super().get_postgres_connect()
             return conn
