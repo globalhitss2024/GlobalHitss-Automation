@@ -26,7 +26,10 @@ from utils.Class_read_trsf_excel import load_update_Datos
 
 if __name__ == "__main__":
     conexion = conIntelienciaComercial().pg_ic_connect()
-    engine = conDbInteligenciaComercialdev().pg_ic_connect()
+    dev_conn = conIntelienciaComercial()
+    dev_conn.db = "Inteligencia_comercial_DEV"  # Cambia la BD
+    engine = dev_conn.get_postgres_connect()
+    #engine = conDbInteligenciaComercialdev().pg_ic_connect()
 
     try:
         df = pd.read_sql(consulta_cavs, conexion)
@@ -49,24 +52,3 @@ if __name__ == "__main__":
             connection.close()
         except Exception as rb_error:
             print("Error durante rollback ", rb_error)
-
-"""
-# %%
-if __name__ == "__main__":
-    # Crea la conexion a la BD
-    conexion = conIntelienciaComercial().pg_ic_connect()
-    engine = conDbInteligenciaComercialdev().pg_ic_connect()
-    try:
-        # Ejecutar la consulta
-        df = pd.read_sql(consulta_cavs, conexion)
-        print("Conexión exitosa. Datos cargados:")
-        print( df.head(5))
-
-        # Cargar DataFrame
-        cargador = load_update_Datos(engine_conexion=engine)
-        cargador.cargar_df_a_tabla(df_tabla=df, name="tb_cavs_generadas", schema="proc_genericos")
-    except Exception as e:
-        print("Error al ejecutar la consulta o conectar a la base de datos:")
-        print(e)
-"""
-
