@@ -10,7 +10,7 @@ DESCRIPCIÓN:	    CONSULTAS SQL PLANTA COMERCIAL Y DICCIONARIOS.
 # Diccionario con la ruta de los modulos principales de conexion a BD
 
 ruta_modulos = {
-    "ruta": r"C:\GIT_Empresas_Negocios\GlobalHitss-Automation\config",
+    "ruta": r"C:\Git_Empresas_Negocios\GlobalHitss-Automation\config",
     "rut_cl": r"C:\Git_Empresas_Negocios\GlobalHitss-Automation\utils"
 }
 

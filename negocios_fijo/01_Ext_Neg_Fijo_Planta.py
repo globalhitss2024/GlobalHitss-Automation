@@ -94,7 +94,7 @@ def main():
         # proceso pestanna RED MAESTRA
         procesador.procesar_pestana("base_planta_comercial", transformar_Campos_redmaestra)
         # proceso pestanna RETAIL
-        procesador.procesar_pestana("base_pc_retail", transformar_campos_retail)
+        #procesador.procesar_pestana("base_pc_retail", transformar_campos_retail)
 
 
     except Exception as e:
