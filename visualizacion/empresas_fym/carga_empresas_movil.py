@@ -4,8 +4,8 @@ FRENTE DE TRABAJO:      VISUALIZACIÓN
 AUTOR:                  HITSS - FERNANDA ZAMBRANO
 OPERACIÓN:              SCRIPT DE CARGA DE TABLA
 VERSIÓN:                v_1.0
-FECHA:                  22/08/2025
-DESCRIPCIÓN:            SCRIPT QUE PERMITE LA CARGA DE LA TABLA tb_ejecucion_emp_fijo
+FECHA:                  25/08/2025
+DESCRIPCIÓN:            SCRIPT QUE PERMITE LA CARGA DE LA TABLA tb_ejecucion_emp_movil
 '''
 
 import os
@@ -29,9 +29,9 @@ def main():
     excel_file_path = os.path.join(project_root, 'visualizacion', 'Bases Empresas Fijo y Movil.xlsx')
 
     # Variables de configuración
-    db_schema = 'sch_emp_fijo'
-    db_table = 'tb_ejecucion_emp_fijo'
-    excel_range = 'B:AI' # Columnas B hasta AI, todas las filas
+    db_schema = 'sch_emp_movil'
+    db_table = 'tb_ejecucion_emp_movil'
+    excel_range = 'A:AD' # Columnas A hasta AD, todas las filas
 
     engine = None
     try:
@@ -50,11 +50,11 @@ def main():
         all_sheet_names = xls.sheet_names
         xls.close()
 
-        sheet_pattern = re.compile(r'^Empresas Fija \d{4}$') # Expresión regular para filtrar las hojas que coinciden con "Empresas Fija" seguido de 4 dígitos 
+        sheet_pattern = re.compile(r'^Empresas Movil \d{4}$') # Expresión regular para filtrar las hojas que coinciden con "Empresas Movil" seguido de 4 dígitos 
         sheets_to_process = [sheet for sheet in all_sheet_names if sheet_pattern.match(sheet)]
 
         if not sheets_to_process:
-            print("No se encontraron hojas para Empresas Fija.")
+            print("No se encontraron hojas para Empresas Movil.")
             return
         
         # Iterar sobre las hojas filtradas para cargar datos
@@ -76,43 +76,49 @@ def main():
                 # Mapeo de nombres de columnas de Excel a nombres de columnas de la base de datos
                 column_mapping = {
                     'TIPO': 'TIPO',
-                    'CONTAR VENTAS': 'CONTAR_VENTAS',
-                    'AÑO': 'ANO',
-                    'MES': 'MES',
-                    'FECHA': 'FECHA',
-                    'ID': 'ID',
-                    'OT': 'OT',
-                    'NIT': 'NIT',
-                    'RAZON SOCIAL': 'RAZON_SOCIAL',
-                    'PRODUCTO': 'PRODUCTO',
-                    'ITO': 'ITO',
-                    'DIRECCION': 'DIRECCION',
-                    'C.C. GERENTE': 'CC_GERENTE',
-                    'GERENCIA': 'GERENCIA',
-                    'C.C. CONSULTOR': 'CC_CONSULTOR',
-                    'CONSULTOR': 'CONSULTOR',
-                    'C.C. COORDINADOR': 'CC_COORDINADOR',
-                    'COORDINADOR': 'COORDINADOR',
-                    'COORDINADOR IT': 'COORDINADOR_IT',
-                    'CONSULTOR IT': 'CONSULTOR_IT',
-                    'C.C. COORDINADOR IT': 'CC_COORDINADOR_IT',
-                    'C.C. CONSULTOR IT': 'CC_CONSULTOR_IT',
-                    'TOTAL VENTAS': 'TOTAL_VENTAS',
-                    'COMISIONES': 'COMISIONES',
-                    'ENLACE': 'ENLACE',
-                    'ACUERDOS DE INDICADOR': 'ACUERDOS_INDICADOR',
-                    'ESTADO OT': 'ESTADO_OT',
-                    'RED': 'RED',
-                    'CLASE VENTA': 'CLASE_VENTA',
-                    'PROYECTO': 'PROYECTO',
-                    'PROYECTO ESPECIAL': 'PROYECTO_ESPECIAL',
-                    'DURACION CONTRATO': 'DURACION_CONTRATO',
-                    'SERVICIO': 'SERVICIO',
-                    'MULTINACIONALES': 'MULTINACIONALES'
+                    'MES' : 'MES',
+                    'AÑO' : 'ANO',
+                    'ZONA' : 'ZONA',
+                    'RAZON' : 'RAZON',
+                    'DONANTE_RECEPTOR' : 'DONANTE_RECEPTOR',
+                    'TRANSACCIONAL' : 'TRANSACCIONAL',
+                    'RAZON SOCIAL' : 'RAZON_SOCIAL',
+                    'NIT' : 'NIT',
+                    'RANGO CFM' : 'RANGO_CFM',
+                    'CODIGO' : 'CODIGO',
+                    'NOMBRE CONSULTOR' : 'NOMBRE_CONSULTOR',
+                    'PLAN' : 'PLAN',
+                    'IDENTIF_MTR' : 'IDENTIF_MTR',
+                    'GERENCIA QUE CUENTA' : 'CUENTA_GERENCIA',
+                    'NOMBRE COORDINADOR' : 'COORDINADOR',
+                    'TIPO/BASE' : 'TIPO_BASE',
+                    'CFM$' : 'CFM',
+                    'LINEAS' : 'LINEAS',
+                    'GERENCIA BASE' : 'GERENCIA_BASE',
+                    'DIRECCION  QUE CUENTA' : 'CUENTA_DIRECCION',
+                    'DIRECCION BASE' : 'DIRECCION_BASE',
+                    'CEDULA_CONS' : 'CEDULA_CONS',
+                    'CEDULA COORD' : 'CEDULA_COORD',
+                    'CEDULA GERENTE' : 'CEDULA_GERENTE',
+                    'DETALLE' : 'DETALLE',
+                    'SPLIT BILLING' : 'SPLIT_BILLING',
+                    'DISTRIBUIDOR' : 'DISTRIBUIDOR',
+                    'FAMILIA DE PRODUCTOS' : 'FAMILIA_PRODUCTOS',
+                    '#  LINEAS' : 'NRO_LINEAS'
                 }
 
                 # Renombrar las columnas del DataFrame
                 df_excel = df_excel.rename(columns=column_mapping)
+
+                # Limpiar la columna 'CFM' para que solo tenga valores numéricos y no $
+                if 'CFM' in df_excel.columns:
+                    df_excel['CFM'] = (
+                        df_excel['CFM']
+                        .replace(r'[^\d\.\-]+', '', regex=True)  # Elimina caracteres no numéricos excepto punto y guion
+                        .replace('-', None)                      # Convierte '-' en None
+                        .replace('', None)                       # Convierte cadenas vacías en None
+                        .astype(float)                           # Convierte a float
+                    )
 
                 # Carga de Datos en la Base de Datos
                 loader = load_update_Datos(engine_conexion=engine)
