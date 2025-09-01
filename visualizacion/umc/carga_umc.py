@@ -18,7 +18,7 @@ project_root = 'C:/Users/46120442/OneDrive - GLOBAL HITSS/Documentos/Proyectos E
 sys.path.insert(0, project_root)
 
 from config.config import conDbInteligenciaComercial
-from utils.Class_read_trsf_excel import ExcelExtractor, load_update_Datos
+from utils.Class_read_trsf_excel import excel_extractor, load_update_Datos
 
 def main():
     """
@@ -45,17 +45,12 @@ def main():
             conn.execute(text(f"TRUNCATE TABLE {db_schema}.{db_table} RESTART IDENTITY"))
             conn.commit()
         print(f"tabla '{db_schema}.{db_table}' truncada.")
-
-        # Crear el DataFrame de configuración requerido por ExcelExtractor para extraer los datos
-        config_df = pd.DataFrame([{
-            'id_base': 1,
-            'nombre_archivo_fuente': excel_file_path,
-            'rango': f'{excel_sheet}!{excel_range}'
-        }])
         
-        extractor = ExcelExtractor(df_base=config_df)
-        df_excel, _ = extractor.obtener_datos(id_base=1) # Extraer datos del Excel
-        df_excel.columns = df_excel.columns.str.strip() # Limpiar espacios en los nombres de columnas
+        # Instanciar excel_extractor con el archivo y rango directamente
+        extractor = excel_extractor(archivo=excel_file_path, hoja_rango=f'{excel_sheet}!{excel_range}')
+        df_excel = extractor.obtener_datos()  # Ya no necesita id_base
+        df_excel = df_excel.dropna(how='all')  # Elimina filas donde todos los valores son nulos
+        df_excel.columns = df_excel.columns.str.strip()  # Limpiar espacios en los nombres de columnas
         print(f"Se extrajeron {df_excel.shape[0]} filas del Excel.")
 
         # Carga de Datos en la Base de Datos

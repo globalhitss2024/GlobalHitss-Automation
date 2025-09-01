@@ -3,11 +3,13 @@ import sys
 import os
 
 # Configurar ruta del proyecto
-ruta_proyecto = r'C:\Users\46196682\Documents\Automatizacion\GlobalHitss-Automation'
+ruta_proyecto = r'C:\01_Inteligencia_Comercial'
+
 if ruta_proyecto not in sys.path:
     sys.path.append(ruta_proyecto)
 
-from utils.automation_def import limpiar_texto, clasificar_producto, crear_tabla_resumen, parse_moneda
+from utils.Utils_auto_agentes import DataUtils
+utils = DataUtils()
 
 def cargar_datos_excel(ruta):
     df_fijo = pd.read_excel(ruta, sheet_name='Base Empresas Fija (2)')
@@ -15,9 +17,9 @@ def cargar_datos_excel(ruta):
     return df_fijo, df_movil
 
 def limpiar_fijo(df):
-    df['CONSULTOR'] = df['CONSULTOR'].apply(limpiar_texto)
-    df['PRODUCTO_LIMPIO_BASE'] = df['PRODUCTO'].apply(limpiar_texto)
-    df['producto_limpio'] = df['PRODUCTO_LIMPIO_BASE'].apply(clasificar_producto)
+    df['CONSULTOR'] = df['CONSULTOR'].apply(utils.limpiar_texto)
+    df['PRODUCTO_LIMPIO_BASE'] = df['PRODUCTO'].apply(utils.limpiar_texto)
+    df['producto_limpio'] = df['PRODUCTO_LIMPIO_BASE'].apply(utils.clasificar_producto)
     df['TOTAL VENTAS'] = df['TOTAL VENTAS'].fillna(0).astype(int)
     df['COMISIONES'] = df['COMISIONES'].fillna(0).astype(int)
     df['FECHA'] = pd.to_datetime(df['FECHA'])
@@ -25,10 +27,10 @@ def limpiar_fijo(df):
     return df
 
 def limpiar_movil(df_movil):
-    df_movil['CFM$'] = df_movil['CFM$'].apply(parse_moneda)
+    df_movil['CFM$'] = df_movil['CFM$'].apply(utils.parse_moneda)
     df_movil['LINEAS'] = pd.to_numeric(df_movil['LINEAS'], errors='coerce').fillna(0).astype(int)
     df_movil['MES_AÑO'] = df_movil['MES'].dt.strftime('%m-%Y')
-    df_movil['NOMBRE CONSULTOR'] = df_movil['NOMBRE CONSULTOR'].apply(limpiar_texto)
+    df_movil['NOMBRE CONSULTOR'] = df_movil['NOMBRE CONSULTOR'].apply(utils.limpiar_texto)
     df_movil['CEDULA_CONS'] = pd.to_numeric(df_movil['CEDULA_CONS'], errors='coerce').astype('Int64')
     mapeo_donante = {'MOVISTAR': 'MOVISTAR', 'TIGO': 'TIGO', 'WOM': 'WOM', 'AVANTEL': 'AVANTEL'}
     df_movil['donante_receptor_limpio'] = df_movil['DONANTE_RECEPTOR'].astype(str).str.strip().str.upper().apply(
@@ -37,23 +39,23 @@ def limpiar_movil(df_movil):
 
 def generar_reportes_fijo(df):
     return {
-        'Crecimiento Fijo': crear_tabla_resumen(df, ['C.C. CONSULTOR', 'CONSULTOR', 'TIPO'], 'TOTAL VENTAS'),
-        'Altas Fijo': crear_tabla_resumen(df[df['TIPO'] == 'Altas'],
+        'Crecimiento Fijo': utils.crear_tabla_resumen(df, ['C.C. CONSULTOR', 'CONSULTOR', 'TIPO'], 'TOTAL VENTAS'),
+        'Altas Fijo': utils.crear_tabla_resumen(df[df['TIPO'] == 'Altas'],
                                           ['C.C. CONSULTOR', 'CONSULTOR', 'producto_limpio'], 'TOTAL VENTAS'),
-        'Neto Fijo': crear_tabla_resumen(df[df['TIPO'].isin(['Altas', 'Churn', 'Erosión'])],
+        'Neto Fijo': utils.crear_tabla_resumen(df[df['TIPO'].isin(['Altas', 'Churn', 'Erosión'])],
                                          ['C.C. CONSULTOR', 'CONSULTOR', 'producto_limpio'], 'TOTAL VENTAS'),
-        'Cloud Fijo': crear_tabla_resumen(df[(df['PRODUCTO_LIMPIO_BASE'] == 'CLOUD') & (df['TIPO'] == 'Digitadas')],
+        'Cloud Fijo': utils.crear_tabla_resumen(df[(df['PRODUCTO_LIMPIO_BASE'] == 'CLOUD') & (df['TIPO'] == 'Digitadas')],
                                           ['C.C. CONSULTOR', 'CONSULTOR', 'PRODUCTO_LIMPIO_BASE'], 'TOTAL VENTAS')
     }
 
 def generar_reportes_movil(df_movil):
     return {
-        'Crecimiento Movil': crear_tabla_resumen(df_movil, ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'TIPO/BASE'], 'CFM$'),
-        'Lineas Movil': crear_tabla_resumen(df_movil, ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'TIPO/BASE'], '#  LINEAS'),
-        'Port In Movil': crear_tabla_resumen(
+        'Crecimiento Movil': utils.crear_tabla_resumen(df_movil, ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'TIPO/BASE'], 'CFM$'),
+        'Lineas Movil': utils.crear_tabla_resumen(df_movil, ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'TIPO/BASE'], '#  LINEAS'),
+        'Port In Movil': utils.crear_tabla_resumen(
             df_movil[df_movil['RAZON'] == 'Activacion Portabilidad Numerica - 267'],
             ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'donante_receptor_limpio'], '#  LINEAS'),
-        'Port Out Movil': crear_tabla_resumen(
+        'Port Out Movil': utils.crear_tabla_resumen(
             df_movil[df_movil['RAZON'] == 'Desactivacion Portabilidad - 248'],
             ['CEDULA_CONS', 'NOMBRE CONSULTOR', 'donante_receptor_limpio'], '#  LINEAS')
     }
@@ -64,8 +66,9 @@ def exportar_reportes_excel(ruta_salida, reportes_dict):
             df.to_excel(writer, sheet_name=hoja, index=False)
 
 if __name__ == "__main__":
-    ruta_excel = r'C:\Users\46196682\Downloads\Resumen Vtas - Bajas Convergente (6) 1.xlsx'
-    ruta_salida = os.path.join(os.environ['USERPROFILE'], 'Documents', 'resumen_consolidado.xlsx')
+    utils = DataUtils()
+    ruta_excel = f'{ruta_proyecto}\Entradas\Resumen Vtas - Bajas Convergente (6) 1.xlsx'
+    ruta_salida = f'{ruta_proyecto}\Salida\resumen_consolidado.xlsx'
 
     df_fijo, df_movil = cargar_datos_excel(ruta_excel)
     df_fijo = limpiar_fijo(df_fijo)

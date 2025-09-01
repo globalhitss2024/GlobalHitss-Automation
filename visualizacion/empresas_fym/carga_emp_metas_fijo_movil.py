@@ -4,8 +4,8 @@ FRENTE DE TRABAJO:      VISUALIZACIÓN
 AUTOR:                  HITSS - FERNANDA ZAMBRANO
 OPERACIÓN:              SCRIPT DE CARGA DE TABLA
 VERSIÓN:                v_1.0
-FECHA:                  22/08/2025
-DESCRIPCIÓN:            SCRIPT QUE PERMITE LA CARGA DE LA TABLA tb_ejecucion_emp_fijo
+FECHA:                  25/08/2025
+DESCRIPCIÓN:            SCRIPT QUE PERMITE LA CARGA DE LA TABLA tb_emp_metas_fijo_movil
 '''
 
 import os
@@ -29,9 +29,9 @@ def main():
     excel_file_path = os.path.join(project_root, 'visualizacion', 'Bases Empresas Fijo y Movil.xlsx')
 
     # Variables de configuración
-    db_schema = 'sch_emp_fijo'
-    db_table = 'tb_ejecucion_emp_fijo'
-    excel_range = 'B:AI' # Columnas B hasta AI, todas las filas
+    db_schema = 'public'
+    db_table = 'tb_emp_metas_fijo_movil'
+    excel_range = 'A:T' # Columnas A hasta T, todas las filas
 
     engine = None
     try:
@@ -50,11 +50,11 @@ def main():
         all_sheet_names = xls.sheet_names
         xls.close()
 
-        sheet_pattern = re.compile(r'^Empresas Fija \d{4}$') # Expresión regular para filtrar las hojas que coinciden con "Empresas Fija" seguido de 4 dígitos 
+        sheet_pattern = re.compile(r'^CUOTAS \d{4}$') # Expresión regular para filtrar las hojas que coinciden con "CUOTAS" seguido de 4 dígitos
         sheets_to_process = [sheet for sheet in all_sheet_names if sheet_pattern.match(sheet)]
 
         if not sheets_to_process:
-            print("No se encontraron hojas para Empresas Fija.")
+            print("No se encontraron hojas de CUOTAS.")
             return
         
         # Iterar sobre las hojas filtradas para cargar datos
@@ -70,43 +70,29 @@ def main():
                 df_excel = df_excel.dropna(how='all')  # Elimina filas donde todos los valores son nulos
                 df_excel.columns = df_excel.columns.str.strip()  # Limpiar espacios en los nombres de columnas
                 print(f"Se extrajeron {df_excel.shape[0]} filas del Excel.")
-                
+
                 # Mapeo de nombres de columnas de Excel a nombres de columnas de la base de datos
                 column_mapping = {
-                    'TIPO': 'TIPO',
-                    'CONTAR VENTAS': 'CONTAR_VENTAS',
-                    'AÑO': 'ANO',
-                    'MES': 'MES',
-                    'FECHA': 'FECHA',
-                    'ID': 'ID',
-                    'OT': 'OT',
-                    'NIT': 'NIT',
-                    'RAZON SOCIAL': 'RAZON_SOCIAL',
-                    'PRODUCTO': 'PRODUCTO',
-                    'ITO': 'ITO',
-                    'DIRECCION': 'DIRECCION',
-                    'C.C. GERENTE': 'CC_GERENTE',
-                    'GERENCIA': 'GERENCIA',
-                    'C.C. CONSULTOR': 'CC_CONSULTOR',
-                    'CONSULTOR': 'CONSULTOR',
-                    'C.C. COORDINADOR': 'CC_COORDINADOR',
-                    'COORDINADOR': 'COORDINADOR',
-                    'COORDINADOR IT': 'COORDINADOR_IT',
-                    'CONSULTOR IT': 'CONSULTOR_IT',
-                    'C.C. COORDINADOR IT': 'CC_COORDINADOR_IT',
-                    'C.C. CONSULTOR IT': 'CC_CONSULTOR_IT',
-                    'TOTAL VENTAS': 'TOTAL_VENTAS',
-                    'COMISIONES': 'COMISIONES',
-                    'ENLACE': 'ENLACE',
-                    'ACUERDOS DE INDICADOR': 'ACUERDOS_INDICADOR',
-                    'ESTADO OT': 'ESTADO_OT',
-                    'RED': 'RED',
-                    'CLASE VENTA': 'CLASE_VENTA',
-                    'PROYECTO': 'PROYECTO',
-                    'PROYECTO ESPECIAL': 'PROYECTO_ESPECIAL',
-                    'DURACION CONTRATO': 'DURACION_CONTRATO',
-                    'SERVICIO': 'SERVICIO',
-                    'MULTINACIONALES': 'MULTINACIONALES'
+                    'Cedula' : 'CEDULA',
+                    'Gerencia/Jefatura' : 'JEFATURA',
+                    'Gerencia' : 'GERENCIA',
+                    'Dirección' : 'DIRECCION',
+                    'Planta Comercial' : 'PLANTA_COMERCIAL',
+                    'Cargo Actual' : 'CARGO_ACTUAL',
+                    'Mes' : 'MES',
+                    'Fecha' : 'FECHA',
+                    'Reto Estratégico' : 'RETO_ESTRATEGICO',
+                    'Convencional' : 'CONVENCIONAL',
+                    'Multinacionales' : 'MULTINACIONALES',
+                    'Meta Fijo' : 'META_FIJO',
+                    'Neto Fijo Trimestral' : 'NETO_FIJO_TRIMESTRAL',
+                    'Líneas Altas' : 'LINEAS_ALTAS',
+                    'Altas Móvil' : 'ALTAS_MOVIL',
+                    'Líneas Bajas' : 'LINEAS_BAJAS',
+                    'Bajas Móvil' : 'BAJAS_MOVIL',
+                    'Cambio De Plan' : 'CAMBIO_PLAN',
+                    'Neto Móvil' : 'NETO_MOVIL',
+                    'Reto Estratégico Movil' : 'RETO_MOVIL'
                 }
 
                 # Renombrar las columnas del DataFrame
