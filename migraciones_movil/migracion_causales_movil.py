@@ -23,29 +23,7 @@ HOJA = "Causales"
 SCHEMA = "sch_neg_movil"
 TABLA  = "tb_causales_movil"
 
-# --- Helpers mínimos para texto/UTF8 (evita errores de encoding al insertar) ---
-"""
-def _to_unicode(val):
-    if isinstance(val, (bytes, bytearray)):
-        try:
-            return val.decode('utf-8')
-        except Exception:
-            return val.decode('latin-1', errors='ignore')
-    return val
 
-def _normalize_text(s):
-    if s is None or (isinstance(s, float) and pd.isna(s)):
-        return s
-    s = str(s)
-    s = re.sub(r'[\u0000-\u001F\u007F]', ' ', s)  # quita caracteres de control
-    return unicodedata.normalize('NFC', s)
-
-def clean_df_utf8(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    for c in df.select_dtypes(include=['object']).columns:
-        df[c] = df[c].map(_to_unicode).map(_normalize_text)
-    return df
-"""
 # --- ETL Causales ---
 def cargar_causales(path_excel: str, hoja: str) -> pd.DataFrame:
     """
@@ -97,16 +75,13 @@ def construir_llave(df: pd.DataFrame) -> pd.DataFrame:
 if __name__ == "__main__":
     # Conexión: reusar clase y solo cambiar nombre de BD si necesitas DEV
     dev_conn = conIntelienciaComercial()
-    # Si quieres apuntar a DEV, ajusta el nombre exacto:
     dev_conn.db = "DBInteligenciaComercialDesarrollo"
     engine = dev_conn.get_postgres_connect()
 
     try:
-        # 1) Excel -> DF limpio
+        #  Excel - DF limpio
         df = cargar_causales(RUTA_EXCEL, HOJA)
-        #df = clean_df_utf8(df)             # evita errores de 'utf-8' al insertar
         df = construir_llave(df)
-
 
         cargador = load_update_Datos(engine_conexion=engine)
         cargador.cargar_df_a_tabla(df_tabla=df, name=TABLA, schema=SCHEMA)
@@ -115,7 +90,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print("Error en la carga:", e)
-        # Rollback manual si aplica
+
         try:
             conn = engine.raw_connection()
             if conn and conn.in_transaction():
@@ -125,3 +100,4 @@ if __name__ == "__main__":
                 conn.close()
         except Exception as rb_err:
             print("Error durante rollback:", rb_err)
+            
