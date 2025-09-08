@@ -76,11 +76,11 @@ class update_tb:
 
 # Clase que encapsula el procesamiento de cada pestanna de datos
 class procesador_base:
-    def __init__(self, engine, df_aux, nombre_tabla_aux, columnas_id_dict):
+    def __init__(self, engine, df_aux, columnas_id, nombre_tabla_aux="proc_genericos.tb_aux_importacion_bases"):
         self.engine = engine
         self.df_aux = df_aux
         self.nombre_tabla_aux = nombre_tabla_aux
-        self.columnas_id = columnas_id_dict
+        self.columnas_id = columnas_id
         self.extractor = extrac_excel(df_aux)
 
     # Método privado auxiliar para obtener nombre de tabla, esquema e id_base a procesar
@@ -117,6 +117,8 @@ class procesador_base:
             actualizador = update_tb(engine_conexion=self.engine)
             # Actualiza la tabla auxiliar 
             actualizador.actualiza_tb_aux_imp_ba(fecha_modificacion, fecha_hora_actual, id_base, self.nombre_tabla_aux)
-            logger.info(f"Fin proceso pestanna: {pestana_id}. Registros cargados: {df_trs.shape[0]}")
+            cantidad_registros = len(df_trs) if df_trs is not None else 0
+            logger.info(f"Fin proceso pestanna: {pestana_id}. Registros cargados: {cantidad_registros}")
+            return cantidad_registros
         except Exception as e:
             logger.error(f"Error al procesar pestanna {pestana_id}: {e}", exc_info=True)
