@@ -1,0 +1,124 @@
+'''
+PROYECTO:		    EMPRESAS Y NEGOCIOS
+AUTOR:			    HITSS BI - FERNANDA ZAMBRANO
+OPERACIÓN: 		    MÓDULO PARA PROCESAR LAS BASES GENERICAS
+VERSIÓN:            V_1.0
+FECHA:              02/09/2025
+DESCRIPCIÓN:	    CONFIGURACIÓN DE CLASES PARA PROCESAMIENTO DE ARCHIVOS DEFINIDOS EN TB_AUX_IMPORTACION_BASES
+'''
+# Importación de módulos personalizados y configuración de rutas
+
+import pandas as pd
+import os
+import re
+from datetime import datetime
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
+import logging
+from .Class_read_trsf_excel import load_update_Datos
+
+# Configuración del logger para registrar mensajes informativos y errores
+logger = logging.getLogger(__name__)
+
+# Clase para extraer datos de fuentes definidas en tb_aux_importacion_bases
+class extrac_excel:
+    def __init__(self, df_base):
+        self.df_base = df_base
+
+    # Metodo que Permite extraer datos de un archivo Excel según el id_base proporcionado.
+    def obtener_datos(self, id_base):
+        # Seleccionar la fila correspondiente
+        fila = self.df_base[self.df_base['id_base'] == id_base].iloc[0]
+        archivo = fila['nombre_archivo_fuente']
+        hoja_rango = fila['rango']
+        # Extraer hoja y rango
+        match = re.match(r"(.*?)!(.*)", hoja_rango)
+        hoja = match.group(1).strip()
+        rango = match.group(2).strip()
+        # Extraer solo las columnas del rango (por ejemplo, de 'A1:AR100' a 'A:AR')
+        col_match = re.match(r"([A-Z]+)[0-9]*:([A-Z]+)[0-9]*", rango)
+        if col_match:
+            col_range = f"{col_match.group(1)}:{col_match.group(2)}"
+        else:
+            raise ValueError(f"Rango no válido: {rango}")
+        # Leer Excel con las columnas correctas
+        df_excel = pd.read_excel(archivo, sheet_name=hoja, usecols=col_range)
+        # Obtener la fecha de modificación del archivo
+        fecha_modificacion = datetime.fromtimestamp(os.path.getmtime(archivo))
+
+        return df_excel, fecha_modificacion
+
+# clase para actualizar datos en tb_aux_importacion_bases
+class update_tb:
+    def __init__(self, engine_conexion):
+        self.engine_conexion = engine_conexion
+
+    def actualiza_tb_aux_imp_ba(self, fecha_modificacion, fecha_hora_actual, id_base, nombre_tabla_aux):
+        try:
+            id_base = int(id_base)
+            query = text(f"""
+                UPDATE {nombre_tabla_aux}
+                SET fecha_modificacion_archivo = :fec_mod,
+                    fecha_importacion = :fec_imp
+                WHERE id_base = :id_base
+            """)
+            with self.engine_conexion.connect() as conn:
+                conn.execute(query, {
+                    "fec_mod": fecha_modificacion,
+                    "fec_imp": fecha_hora_actual,
+                    "id_base": id_base
+                })
+                conn.commit()
+            print("Actualizacion exitosa de fechas.")
+        except SQLAlchemyError as e:
+            print(f"Error al actualizar los datos: {e}")
+            logger.error(f"Error al actualizar los datos: {e}", exc_info=True)
+
+# Clase que encapsula el procesamiento de cada pestanna de datos
+class procesador_base:
+    def __init__(self, engine, df_aux, columnas_id, nombre_tabla_aux="proc_genericos.tb_aux_importacion_bases"):
+        self.engine = engine
+        self.df_aux = df_aux
+        self.nombre_tabla_aux = nombre_tabla_aux
+        self.columnas_id = columnas_id
+        self.extractor = extrac_excel(df_aux)
+
+    # Método privado auxiliar para obtener nombre de tabla, esquema e id_base a procesar
+    def _asignar_data(self, columnas_id):
+        """Método privado para obtener configuración de tabla desde df_aux"""
+        fila = self.df_aux[self.df_aux['id_base'] == columnas_id]
+        if fila.empty:
+            raise ValueError("No se encontró ninguna fila con el id_base especificado.")
+        return fila.iloc[0]['nombre_tbl_servidor'], fila.iloc[0]['nombre_esquema_servidor'], fila.iloc[0]['id_base']
+    
+    # Método para procesar una pestanna específica
+    def procesar_pestana(self, pestana_id, transformador_func):
+        try:
+            logger.info(f"Inicio proceso pestanna: {pestana_id}")
+            # Extrae los datos desde el archivo Excel
+            df, fecha_modificacion = self.extractor.obtener_datos(self.columnas_id[pestana_id])
+            # Obtiene nombre de tabla, esquema e id_base usando el método interno
+            name, schema, id_base = self._asignar_data(self.columnas_id[pestana_id])
+            # Aplica transformación a los datos
+            df_trs = transformador_func(df)
+            # Trunca la tabla destino antes de cargar nuevos datos
+            try:
+                with self.engine.begin() as conn:
+                    conn.execute(text(f"TRUNCATE TABLE {schema}.{name} CASCADE"))
+            except Exception as e:
+                print(f"Error al limpiar la tabla: {e}")
+            # Crea una instancia de la clase que carga datos a BD
+            cargador = load_update_Datos(engine_conexion=self.engine)
+             # Carga los datos transformados a la tabla destino
+            cargador.cargar_df_a_tabla(df_tabla=df_trs, name=name, schema=schema)
+            # Captura datos de fecha 
+            fecha_hora_actual = datetime.now()
+            # Crea una instancia de la clase para actualizar datos auxiliares
+            actualizador = update_tb(engine_conexion=self.engine)
+            # Actualiza la tabla auxiliar 
+            actualizador.actualiza_tb_aux_imp_ba(fecha_modificacion, fecha_hora_actual, id_base, self.nombre_tabla_aux)
+            cantidad_registros = len(df_trs) if df_trs is not None else 0
+            logger.info(f"Fin proceso pestanna: {pestana_id}. Registros cargados: {cantidad_registros}")
+            return cantidad_registros
+        except Exception as e:
+            logger.error(f"Error al procesar pestanna {pestana_id}: {e}", exc_info=True)

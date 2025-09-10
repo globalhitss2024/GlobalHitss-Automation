@@ -3,7 +3,7 @@ import sys
 import os
 
 # Configurar ruta del proyecto
-ruta_proyecto = r'C:\01_Inteligencia_Comercial'
+ruta_proyecto = r'C:\Users\46196682\Documents\Automatizacion\GlobalHitss-Automation'
 
 if ruta_proyecto not in sys.path:
     sys.path.append(ruta_proyecto)
@@ -67,8 +67,8 @@ def exportar_reportes_excel(ruta_salida, reportes_dict):
 
 if __name__ == "__main__":
     utils = DataUtils()
-    ruta_excel = f'{ruta_proyecto}\Entradas\Resumen Vtas - Bajas Convergente (6) 1.xlsx'
-    ruta_salida = f'{ruta_proyecto}\Salida\resumen_consolidado.xlsx'
+    ruta_excel = r'C:\Users\46196682\Documents\Resumen Vtas - Bajas Convergente (3).xlsx'
+    ruta_salida = r'C:\Users\46196682\Documents\resumen_consolidado.xlsx'
 
     df_fijo, df_movil = cargar_datos_excel(ruta_excel)
     df_fijo = limpiar_fijo(df_fijo)

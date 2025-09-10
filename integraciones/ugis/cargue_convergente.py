@@ -8,6 +8,7 @@ from config.config import conIntelienciaComercial as connic
 from config.config import conDbInteligenciaComercial as conndbi
 from sql.ugis.bd_asignacion import UgiQueries as uq
 from datetime import datetime, timedelta
+from utils.umbral_utils import UmbralEvaluator
 
 # --- Configuración de la base de datos ---
 dbi = conndbi()
@@ -51,22 +52,22 @@ class generateUgis:
         Lee los archivos necesarios para el cruce de datos.
         """
         try:
-            unificada_types = {'identificacion': str, 'des_tipo_cliente': str} 
+            unificada_types = {'identificacion_1': str, 'des_tipo_cliente': str} 
             df_types = {'no_identificacion_final': str, 'des_segmento_comercial': str}
             
-            df_unificada = pd.read_csv(f'{self.path}/{files[0]}', usecols=['identificacion', 'des_tipo_cliente'], 
-                                       dtype=unificada_types, sep=';')
+            df_unificada = pd.read_csv(f'{self.path}/{files[0]}', usecols=['identificacion_1', 'des_tipo_cliente'], 
+                                       dtype=unificada_types, sep='|')
             
             df_fo_a = pd.read_csv(f'{self.path}/{files[1]}', usecols=['no_identificacion_final', 'des_segmento_comercial'],
                                   dtype=df_types, sep='|')
 
-            self.logger.info("Limpiando columna 'identificacion' en df_unificada...")
-            df_unificada['identificacion'] = df_unificada['identificacion'].apply(self.limpiar_documento)
+            self.logger.info("Limpiando columna 'identificacion_1' en df_unificada...")
+            df_unificada['identificacion_1'] = df_unificada['identificacion_1'].apply(self.limpiar_documento)
             
             self.logger.info("Limpiando columna 'no_identificacion_final' en df_fo_a...")
             df_fo_a['no_identificacion_final'] = df_fo_a['no_identificacion_final'].apply(self.limpiar_documento)
             
-            df_unificada.rename(columns={'identificacion': 'nit'}, inplace=True)
+            df_unificada.rename(columns={'identificacion_1': 'nit'}, inplace=True)
             df_fo_a.rename(columns={'no_identificacion_final': 'nit'}, inplace=True)
             
             return df_unificada, df_fo_a
@@ -128,7 +129,6 @@ class generateUgis:
         # Marcar duplicados por NIT con la nueva columna 'duplicated'
         df['duplicated'] = df.duplicated(subset='nit', keep=False)
         df_sin_duplicados = df[~df['duplicated']].copy()
-
         df_duplicados = df[df['duplicated']].copy()
         
         if not df_duplicados.empty:
@@ -155,7 +155,7 @@ class generateUgis:
 
 if __name__ == '__main__':
     cd = generateUgis('C:\\Users\\46196682\\Documents\\EntradasConvergencia')
-    df1, df2 = cd.read_data_files('UNIFICADA JULIO UMC.csv', 'fo julio.csv')
+    df1, df2 = cd.read_data_files('UNIFICADA AGOSTO UMC.csv', 'FO 08.csv')
     df_bd_asignacion = cd.read_data_db(uq.query_asignacion(), connic().pg_ic_connect())
     df_bd_seg_homologo = cd.read_data_db(uq.query_seg_homologo(), engine_dev) 
     df_join_files = cd.cross_data_files(df1, df2)
@@ -173,6 +173,10 @@ if __name__ == '__main__':
     'segmento': 'Cliente potencial',
     'direccion': 'Cliente potencial'
     }, inplace=True)
+
+    evaluator = UmbralEvaluator(df_final)
+    df_final = evaluator.apply_rules()  
+
 
     if isinstance(df_final, pd.DataFrame) and not df_final.empty:
         print(df_final.info())
