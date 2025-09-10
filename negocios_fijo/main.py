@@ -22,13 +22,8 @@ from utils.bases_genericas import procesador_base  # Clase genérica para proces
 from config.config import conIntelienciaComercial, conDbInteligenciaComercial
 from sql.negocios_fijos.negocios_fijos import get_query 
 from utils.control_ejecucion import ControlEjecucion # Clase genérica para auditoría y logging
-from jobs.planta_comercial import red_maestra
-# from jobs.retail import retail  # cuando se implemente
+from jobs.planta_comercial import red_maestra, retail
 import parametros as prm 
-
-# Configuración de logging
-log_folder = r"C:\Users\46120442\OneDrive - GLOBAL HITSS\Documentos\Proyectos Empresas y Negocios\HU0019\logs"
-log_filename = "negocios_fijo.log"
 
 def obtener_datos_aux(engine):
     try:
@@ -50,7 +45,7 @@ def procesos_desde_aux(df_aux, columnas_id):
         # Mapeo de transformadores 
         transformadores = {
             "base_planta_comercial": red_maestra().run_transformacion,
-            #"base_pc_retail": retail().run_transformacion,  # cuando se implemente
+            "base_pc_retail": retail().run_transformacion,
         }        
         # Iterar sobre todos los procesos configurados en parámetros
         for pestana_key, id_base in columnas_id.items():
@@ -88,11 +83,11 @@ def procesos_desde_aux(df_aux, columnas_id):
         print(f"Error en procesos_desde_aux: {e}")
         raise
 
-def ejecutar_proceso(procesador, proceso_config, engine_auditoria, log_folder, log_filename):
-    """Ejecuta un proceso ETL individual y registra log"""
+def ejecutar_proceso(procesador, proceso_config, engine_auditoria, log_folder):
+    """Ejecuta un proceso ETL individual y registra log específico"""
     try:
         # Inicialización de variables de control para manejo de errores
-        id_proceso = str(uuid.uuid4()).upper()
+        id_proceso = str(uuid.uuid4()).upper() # mantener uuid único por proceso
         control_proceso = None
         proceso_nombre = None
         
@@ -102,14 +97,18 @@ def ejecutar_proceso(procesador, proceso_config, engine_auditoria, log_folder, l
         fuente = proceso_config["fuente"]
         destino = proceso_config["destino"]
 
-        # Crear control para auditoría específica del proceso
+        # Generar nombre de log específico para cada proceso
+        nombre_limpio = pestana_id.replace("base_", "").replace("_", "_")
+        log_filename = f"{nombre_limpio}.log"  # Se genera dinamicamente planta_comercial.log, retail.log, etc.
+
+        # Crear control para auditoría específica del proceso con log individual
         control_proceso = ControlEjecucion(
             id_ejecucion=id_proceso,
             db_engine=engine_auditoria,
             log_folder=log_folder,
-            log_filename=log_filename,
+            log_filename=log_filename,  # Log especifico por proceso
             fuente=fuente, # Para registro en tabla auditoría
-            destino=destino # Para registro en tabla auditoría
+            destino=destino, # Para registro en tabla auditoría
         )
         
         # Procesa la pestaña correspondiente y captura cantidad de registros
@@ -143,12 +142,9 @@ def main():
         # Variables para conexión a base de datos
         engine_datos = None
         engine_auditoria = None
-        
+
         # Configuración de Rutas definidas en parametros
-        ruta_config = prm.ruta_modulos["ruta"]
-        ruta_utils = prm.ruta_modulos["rut_cl"]
-        if ruta_config not in sys.path: sys.path.append(ruta_config)
-        if ruta_utils not in sys.path: sys.path.append(ruta_utils)
+        log_folder = prm.rutas["logs"] 
 
         # Conexiones a Base de Datos
         engine_datos = conIntelienciaComercial().pg_ic_connect()
@@ -167,17 +163,14 @@ def main():
         print(f"Iniciando ejecución de {len(procesos)} proceso(s)...")
         
         # Inicializa contadores de procesos a ejecutar
-        total_procesos = len(procesos)
         procesos_exitosos = 0
         total_errores = 0
         
         # Loop principal - ejecuta cada proceso
         for i, proceso_config in enumerate(procesos, 1):
-            print(f"Proceso {i}/{total_procesos}")
-            print("-" * 50)
             
             # Ejecuta proceso individual
-            exito, errores = ejecutar_proceso(procesador, proceso_config, engine_auditoria, log_folder, log_filename)
+            exito, errores = ejecutar_proceso(procesador, proceso_config, engine_auditoria, log_folder)
             
             if exito:
                 procesos_exitosos += 1

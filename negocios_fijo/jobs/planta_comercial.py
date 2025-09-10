@@ -43,7 +43,7 @@ class red_maestra:
         }
 
     def _transformar_columna(self, df, columna, reemplazar_nbsp=False, valor_nulo='NO REGISTRA'):
-        """Función de ayuda para la limpieza estándar de columnas."""
+        #Limpieza de columnas: limpia, maneja nulos y convierte a mayúsculas
         def limpiar(x):
             if pd.isna(x) or str(x).strip() == '':
                 return valor_nulo
@@ -79,4 +79,55 @@ class red_maestra:
         ]
         
         print(f"Transformación finalizada. {len(df_transformado)} registros procesados.")
+        return df_transformado
+
+class retail:
+    """
+    Contiene la lógica para el ETL de la base de PC Retail.
+    """
+    def __init__(self):
+        # Mapeo de columnas: {Columna Excel: (columna_destino, reemplazar_espacios_internos)}
+        self.columnas_a_transformar = {
+            'NIT': ('nit', False),
+            'NOMBRE': ('nombre_retail', True),
+            'GERENTE': ('gerente', True),
+            'ESPECIALISTA': ('especialista', True),
+            'CIUDAD': ('ciudad', False)
+        }
+
+    def _transformar_columna(self, series, reemplazar_espacios=False):
+        """
+        Transforma una columna del DataFrame (series de pandas).
+        """
+        def limpiar_valor(valor):
+            # Si es NaN, None, o un string vacío/con espacios, devuelve 'NO REGISTRA'
+            if pd.isna(valor) or str(valor).strip() == '':
+                return 'NO REGISTRA'
+            
+            # Convierte a string, quita espacios de los lados y pone en mayúsculas
+            texto = str(valor).strip().upper()
+            
+            # Reemplaza espacios internos si es necesario
+            if reemplazar_espacios:
+                texto = texto.replace(' ', '')
+            
+            return texto
+
+        return series.apply(limpiar_valor)
+
+    def run_transformacion(self, df_input):
+        """
+        Orquesta la transformación completa del DataFrame para Retail.
+        """
+        print("Ejecutando transformaciones para PC Retail...")
+        df_transformado = pd.DataFrame()
+
+        for col_origen, (col_destino, reemplazar_espacios) in self.columnas_a_transformar.items():
+            if col_origen in df_input.columns:
+                df_transformado[col_destino] = self._transformar_columna(df_input[col_origen], reemplazar_espacios)
+            else:
+                # Si la columna de origen no existe, la crea con el valor por defecto
+                df_transformado[col_destino] = 'NO REGISTRA'
+        
+        print(f"Transformación de Retail finalizada. {len(df_transformado)} registros procesados.")
         return df_transformado

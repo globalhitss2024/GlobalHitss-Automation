@@ -7,9 +7,8 @@ FECHA:          02/09/2025
 DESCRIPCIÓN:    CONFIGURACIÓN DE PARÁMETROS TRANSVERSALES PARA TODOS LOS PROCESOS DE NEGOCIOS FIJO
 '''
 # Configuración de rutas
-ruta_modulos = {
-    "ruta": r"C:\Users\46120442\OneDrive - GLOBAL HITSS\Documentos\Proyectos Empresas y Negocios\HU0019\Desarrollo\config",
-    "rut_cl": r"C:\Users\46120442\OneDrive - GLOBAL HITSS\Documentos\Proyectos Empresas y Negocios\HU0019\Desarrollo\utils"
+rutas = {
+    "logs": r"C:\Users\46120442\OneDrive - GLOBAL HITSS\Documentos\Proyectos Empresas y Negocios\HU0019\logs"
 }
 
 # IDs que la clase procesador_base necesita para encontrar la configuración en la tabla aux de BD
