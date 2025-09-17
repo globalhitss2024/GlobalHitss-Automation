@@ -22,7 +22,7 @@ from utils.bases_genericas import procesador_base  # Clase genérica para proces
 from config.config import conIntelienciaComercial, conDbInteligenciaComercial
 from sql.negocios_fijos.negocios_fijos import get_query 
 from utils.control_ejecucion import ControlEjecucion # Clase genérica para auditoría y logging
-from jobs.planta_comercial import red_maestra, retail
+from jobs.planta_comercial import red_maestra, retail, directos
 import parametros as prm 
 
 def obtener_datos_aux(engine):
@@ -46,6 +46,7 @@ def procesos_desde_aux(df_aux, columnas_id):
         transformadores = {
             "base_planta_comercial": red_maestra().run_transformacion,
             "base_pc_retail": retail().run_transformacion,
+            "base_pc_directos": directos().run_transformacion,
         }        
         # Iterar sobre todos los procesos configurados en parámetros
         for pestana_key, id_base in columnas_id.items():
